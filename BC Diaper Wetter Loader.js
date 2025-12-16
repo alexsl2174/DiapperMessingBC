@@ -18,7 +18,7 @@
     var script = document.createElement("script");
     
     // ⚠️ IMPORTANT: REPLACE THIS URL with the raw link to the full mod code hosted on GitHub.
-    script.src = "https://github.com/alexsl2174/DiapperMessingBC/blob/3cb6906fc0dee00cdb7831deca2042bd5b83bbb8/bcdw_bundle.js"; 
+    script.src = "https://raw.githubusercontent.com/alexsl2174/DiapperMessingBC/1781b181c940839d4078b854e266bddd7f60c384/bcdw_bundle.js";
     
     document.head.appendChild(script);
 })();
