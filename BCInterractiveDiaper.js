@@ -6,6 +6,14 @@ var regressionLevel;
 var desperationLevel;
 var diaperTimerModifier;
 
+// Crucial: Declaring variables used by multiple functions to hold the diaper state
+var WetLevelPanties = 0;
+var MessLevelPanties = 0;
+var WetLevelChastity = 0;
+var MessLevelChastity = 0;
+var diaperRunning = false;
+
+
 // Start listening for chat inputs
 function bcdwStartListening()
 {
@@ -131,7 +139,7 @@ function bcdwCommands(chatCommand, callerID, type)
             stopWetting();
         }
     }
-  // Chat commands that can be executed by other people
+    // Chat commands that can be executed by other people
     {
         // Filter to make sure the command is targeted at the user
         // Note: Player.MemberNumber is not a string, but the check still seems to work as it is in the original code.
@@ -151,7 +159,7 @@ function bcdwCommands(chatCommand, callerID, type)
                 // See if you should be changing both or just one of the diaper (and which one, of course)
                 if (chatCommand[chatCommand.length-1] === "panties")
                 {
-                    // FIX: Changed "panties" to "Panties" for case-sensitivity and inverted the logic for the error message.
+                    // FIX: Changed to correct case "Panties" and inverted the logic.
                     if (!checkForDiaper("Panties"))
                     {
                         ServerSend("ChatRoomChat", {Type: "Action", Content: "gag", Dictionary: [{Tag: "gag", Text: Player.Name + " doesn't have a diaper there!"}]});
@@ -163,8 +171,7 @@ function bcdwCommands(chatCommand, callerID, type)
                 }
                 else if (chatCommand[chatCommand.length-1] === "chastity")
                 {
-                    // FIX: Changed incorrect comparison (checkForDiaper === "chastity") to a correct function call (!checkForDiaper("ItemPelvis"))
-                    // "ItemPelvis" is the correct slot name for chastity belts/diapers.
+                    // FIX: Changed to correct slot "ItemPelvis" and corrected the comparison.
                     if (!checkForDiaper("ItemPelvis"))
                     {
                         ServerSend("ChatRoomChat", {Type: "Action", Content: "gag", Dictionary: [{Tag: "gag", Text: Player.Name + " doesn't have a diaper there!"}]});
@@ -176,7 +183,7 @@ function bcdwCommands(chatCommand, callerID, type)
                 }
                 else
                 {
-                    // FIX: Changed "panties" and "chastity" to the correct case-sensitive slot names "Panties" and "ItemPelvis"
+                    // FIX: Changed to correct case-sensitive slot names "Panties" and "ItemPelvis"
                     if (!(checkForDiaper("Panties") || checkForDiaper("ItemPelvis")))
                     {
                         ServerSend("ChatRoomChat", {Type: "Action", Content: "gag", Dictionary: [{Tag: "gag", Text: Player.Name + " doesn't have a diaper! Get one on her before she makes a mess!"}]});
@@ -241,7 +248,7 @@ function diaperWetter(
         inWetLevelChastity: (initWetLevelOuter < 0 || initWetLevelOuter > 2) ? 
             ((initMessLevelOuter < 0 || initMessLevelOuter > 2) ? 
                 BCDWCONST?.diaperDefaultValues.messLevelOuter : 
-                inMessLevelOuter
+                initMessLevelOuter
             ) : 
             ((initWetLevelOuter > initMessLevelOuter) ? 
                 initWetLevelOuter : 
@@ -477,7 +484,7 @@ function diaperTick()
     diaperTimerModifier = manageDesperation(diaperTimerModifier);
     diaperTimer = diaperTimerBase / diaperTimerModifier;
 
-    testMess = Math.random();
+    let testMess = Math.random(); // Added 'let' for proper scoping
     // If the baby messes, increment the mess level to a max of 2 and make sure that the wet level is at least as high as the mess level.
     if (testMess > 1-messChance)
     {
@@ -524,7 +531,8 @@ function diaperTick()
     // If the baby only wets, increment the wet level to a max of 2.
     else if (testMess > 1-wetChance)
     {
-        if (WetLevelPanties == 2 && (InventoryGet(Player, "Panties") !== "PoofyDiaper" && InventoryGet(Player, "Panties") !== "BulkyDiaper"))
+        // This is the cleaned-up conditional: If inner diaper is full (level 2) AND inner diaper is not present, then use the outer diaper.
+        if (WetLevelPanties == 2 && !checkForDiaper("Panties"))
         {
             WetLevelChastity = (WetLevelChastity < 2) ? WetLevelChastity + 1 : WetLevelChastity;
         }
