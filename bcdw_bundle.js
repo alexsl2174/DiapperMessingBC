@@ -26,14 +26,12 @@
     let MessLevelChastity = 0;
     let WetLevelChastity = 0;
 
-    // --- CORE LOGIC FUNCTIONS (fully defined for stability) ---
+    // --- CORE LOGIC FUNCTIONS ---
 
     function RoundToDecimal(num, decimalPlaces = 1) {
         const p = window.Math.pow(10, decimalPlaces);
         return window.Math.round(num * p) / p;
     }
-    // ... (rest of core logic functions like diaperWetter, refreshDiaper, checkTick, etc. must be included here) ...
-    // NOTE: The full functional code from v0.3.4 is assumed to be present below this line.
 
     function checkForDiaper(slot) {
         const item = window.InventoryGet(window.Player, slot)?.Asset?.Name;
@@ -53,10 +51,13 @@
         let newProperties = currentItem.Property || {};
         let newAssetName = currentItem.Asset.Name;
         
+        // Applying Visual Bulk/Thickness:
         if (messLevel > 0 || wetLevel > 0) {
             newProperties.TypeRecord = newProperties.TypeRecord || {};
+            // 2 for Heavy/Max, 1 for Medium, 0 for Light/Clean
             newProperties.TypeRecord.typed = (messLevel === 2 || wetLevel === 2) ? 2 : 1; 
             
+            // Soiling Effect
             if (messLevel >= 1) {
                  newProperties.Effect = newProperties.Effect?.filter(e => e !== "Soiled") || [];
                  newProperties.Effect.push("Soiled");
@@ -84,16 +85,20 @@
     function diaperWetter({ initMessChance = messChance, initWetChance = wetChance, baseTimer = diaperTimerBase } = {}) {
         refreshDiaper({ cdiaper: "both" });
         messChance = initMessChance; wetChance = initWetChance; diaperTimerBase = baseTimer;
-        diaperTimerModifier = 1; diaperTimer = diaperTimerBase / diaperTimerModifier;
+        
+        let diaperTimerModifier = 1;
+        diaperTimer = diaperTimerBase / diaperTimerModifier;
+        
         diaperRunning = true; checkTick();
     }
 
     function stopWetting() { diaperRunning = false; window.clearTimeout(diaperLoop); }
 
     function diaperTick() {
-        diaperTimerModifier = 1; diaperTimer = diaperTimerBase / diaperTimerModifier;
+        let diaperTimerModifier = 1;
+        diaperTimer = diaperTimerBase / diaperTimerModifier;
+
         let testMess = window.Math.random();
-        
         if (testMess > 1 - messChance) {
             if (MessLevelPanties === 2 || !checkForDiaper("Panties")) { MessLevelChastity = window.Math.min(2, MessLevelChastity + 1); WetLevelChastity = window.Math.max(WetLevelChastity, MessLevelChastity); } 
             else if (checkForDiaper("Panties")) { MessLevelPanties = window.Math.min(2, MessLevelPanties + 1); WetLevelPanties = window.Math.max(WetLevelPanties, MessLevelPanties); }
@@ -112,8 +117,9 @@
             diaperTick();
         } else { diaperRunning = false; }
     }
-    
-    // --- BCDW-UI.JS CONTENT ---
+
+
+    // --- BCDW-UI.JS CONTENT (UI Definition) ---
     let Y_START = 150; 
     let PREF_BUTTON_Y = 700;
     let PREF_BUTTON_W = 300;
@@ -170,7 +176,7 @@
         if (window.MouseIn(400, Y - 30, 75, 50)) { diaperTimerBase = window.Math.max(5, diaperTimerBase - 5); return; }
     }
 
-    // Define the custom screen on the window
+    // Expose the custom screen globally (as required by the Mod SDK interface)
     window.DiaperWetterSettings = {
         Load: () => { },
         Run: DiaperWetterSettingsDraw,
@@ -178,39 +184,40 @@
     };
 
 
-    // --- BCDW-MAIN.JS CONTENT (Initialization & Hooks) ---
+    // --- BCDW-INTEGRATION.JS CONTENT (Official Mod SDK Registration) ---
     
-    // 1. Hook CommonDraw
-    if (typeof window.CommonDraw === 'function' && !window.bcdw_original_CommonDraw) {
-        window.bcdw_original_CommonDraw = window.CommonDraw;
-        window.CommonDraw = function() {
-            window.bcdw_original_CommonDraw.apply(this, arguments);
+    function DiaperWetterPrefCall(func) {
+        const settingsScreen = window.DiaperWetterSettings; 
 
-            if (window.CurrentScreen === "Preference" && window.PreferenceMessage === "") {
-                window.DrawButton(125, PREF_BUTTON_Y, PREF_BUTTON_W, PREF_BUTTON_H, "Diaper Wetter Settings", "Cyan", "BCDW_OpenDiaperSettings");
-            }
-        };
+        if (settingsScreen && typeof settingsScreen[func] === 'function') {
+            settingsScreen[func](); 
+            return true;
+        }
+        return false;
     }
 
-    // 2. Hook CommonClick
-    if (typeof window.CommonClick === 'function' && !window.bcdw_original_CommonClick) {
-        window.bcdw_original_CommonClick = window.CommonClick;
-        window.CommonClick = function() {
+    // Check if the official registration function exists (provided by the Mod SDK)
+    if (typeof window.PreferenceRegisterExtensionSetting === 'function') {
+        
+        // REGISTER OUR CUSTOM MOD SETTINGS
+        window.PreferenceRegisterExtensionSetting({
+            Identifier: 'BCDW',
+            ButtonText: 'Diaper Wetter Settings',
+            Image: 'Icons/Magic.png',
             
-            if (window.CurrentScreen === "Preference" && window.PreferenceMessage === "") {
-                if (window.MouseIn(125, PREF_BUTTON_Y, PREF_BUTTON_W, PREF_BUTTON_H)) {
-                    window.CommonSetScreen("Room", "DiaperWetterSettings");
-                    return;
-                }
-            }
-
-            if (window.CurrentScreen === "DiaperWetterSettings") {
-                window.DiaperWetterSettings.Click();
-                return;
-            }
-            
-            window.bcdw_original_CommonClick.apply(this, arguments);
-        };
+            // Link the SDK calls to our custom UI functions
+            load: () => DiaperWetterPrefCall('Load'),
+            run: () => DiaperWetterPrefCall('Run'),
+            exit: () => DiaperWetterPrefCall('Exit'),
+            click: () => DiaperWetterPrefCall('Click'),
+        });
+        
+    } else {
+        // Fallback: If the official registration function isn't available, we warn the user.
+        console.error("BCDW: CRITICAL ERROR - PreferenceRegisterExtensionSetting not found. Mod UI will not display in Preferences menu.");
+        
+        // NOTE: The previous manual CommonDraw/CommonClick hook fallback is omitted here 
+        // because we are now relying solely on the proper Mod SDK method for stability.
     }
     
     // Start initial check loop
