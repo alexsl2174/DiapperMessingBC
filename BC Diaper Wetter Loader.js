@@ -21,6 +21,6 @@
     n.setAttribute("language", "JavaScript");
     n.setAttribute("crossorigin", "anonymous");
 
-    n.setAttribute("src", "https://alexsl2174.github.io/DiapperMessingBC/BCInterractiveDiaper.js" + Date.now());
+    n.setAttribute("src", "https://raw.githubusercontent.com/alexsl2174/DiapperMessingBC/2a3e14fa8a40bd21d43eaafe9baeb0f8820d24f1/BCInterractiveDiaper.js" + Date.now());
     document.head.appendChild(n);
 })();
