@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         BC Diaper Wetter Loader
+// @name         BC Diaper Wetter Loader (Final SDK Fix)
 // @namespace    https://www.bondageprojects.com/
-// @version      0.3.5
-// @description  Loads the official BC Diaper Wetter Mod bundle from GitHub.
+// @version      1.0.3
+// @description  Loads the mod with permissions to access the Mod SDK.
 // @author       Arctic Line / Coding Partner
 // @match        https://bondageprojects.elementfx.com/*
 // @match        https://www.bondageprojects.elementfx.com/*
@@ -10,15 +10,16 @@
 // @match        https://www.bondage-europe.com/*
 // @match        http://localhost:*/*
 // @run-at       document-end
-// @grant        none
+// @grant        unsafeWindow  
 // ==/UserScript==
 
 (function() {
     'use strict';
-    var script = document.createElement("script");
     
-    // ⚠️ IMPORTANT: REPLACE THIS URL with the raw link to the full mod code hosted on GitHub.
-script.src = "https://raw.githubusercontent.com/alexsl2174/DiapperMessingBC/main/bcdw_bundle.js";
+    var script = unsafeWindow.document.createElement("script");
     
-    document.head.appendChild(script);
+    // **USING THE SHORTER, MORE RELIABLE RAW URL**
+    script.src = "https://raw.githubusercontent.com/alexsl2174/DiapperMessingBC/main/bcdw_bundle.js"; 
+    
+    unsafeWindow.document.head.appendChild(script);
 })();
