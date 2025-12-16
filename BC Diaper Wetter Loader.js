@@ -20,6 +20,6 @@
     let n = document.createElement("script");
     n.setAttribute("language", "JavaScript");
     n.setAttribute("crossorigin", "anonymous");
-    n.setAttribute("src", "https://raw.githubusercontent.com/alexsl2174/DiapperMessingBC/main/bcdw_bundle.js" + Date.now());
+    n.setAttribute("src", "https://github.com/alexsl2174/DiapperMessingBC/blob/main/BCInterractiveDiaper" + Date.now());
     document.head.appendChild(n);
 })();
