@@ -55,7 +55,7 @@
         let newProperties = currentItem.Property || {};
         let newAssetName = currentItem.Asset.Name;
         
-        // Applying Visual Bulk/Thickness and Soiling based on level (The "Prettier" Fix)
+        // Applying Visual Bulk/Thickness and Soiling (The "Prettier" Fix)
         if (messLevel > 0 || wetLevel > 0) {
             newProperties.TypeRecord = newProperties.TypeRecord || {};
             newProperties.TypeRecord.typed = (messLevel === 2 || wetLevel === 2) ? 2 : 1; 
@@ -122,7 +122,7 @@
 
 
     // ====================================================================
-    // 3. UI/Settings Screen Definition
+    // 3. UI/Settings Screen Definition (Exposed Globally)
     // ====================================================================
     
     let Y_START = 150; 
@@ -130,8 +130,9 @@
     let PREF_BUTTON_W = 300;
     let PREF_BUTTON_H = 65;
 
-    // --- UI Draw Function (BCDW_Run) ---
-    function BCDW_Run() {
+    // --- Draw Function (BCDW_Run) ---
+    // This function must be exposed globally under a unique name for the SDK to call it via PreferenceRegisterExtensionSetting.
+    window.PreferenceSubscreenBCDWRun = function() {
         window.DrawText("BC Diaper Wetter Settings", 500, 50, "Black", "Gray");
         let Y = Y_START;
 
@@ -161,8 +162,9 @@
         window.DrawButton(900, 25, 60, 60, "", "White", "BCDW_Exit");
     }
 
-    // --- UI Click Function (BCDW_Click) ---
-    function BCDW_Click() {
+    // --- Click Function (BCDW_Click) ---
+    // This function must be exposed globally under a unique name for the SDK to call it.
+    window.PreferenceSubscreenBCDWClick = function() {
         if (window.MouseIn(900, 25, 60, 60)) { window.CommonSetScreen("Room", "Preference"); return; }
         let Y = Y_START;
 
@@ -177,50 +179,45 @@
         if (window.MouseIn(650, Y - 30, 75, 50)) { diaperTimerBase = window.Math.min(60, diaperTimerBase + 5); return; }
         if (window.MouseIn(400, Y - 30, 75, 50)) { diaperTimerBase = window.Math.max(5, diaperTimerBase - 5); return; }
     }
-
-    // Helper functions required by the SDK registration interface
-    const BCDW_Load = () => { /* No complex load logic needed */ };
-    const BCDW_Exit = () => { window.CommonSetScreen("Room", "Preference"); };
-
-    // Function to bridge SDK calls to your local functions (as per BCAR example)
-    function DiaperWetterPrefCall(func) {
-        if (func === 'Load') BCDW_Load();
-        else if (func === 'Run') BCDW_Run();
-        else if (func === 'Exit') BCDW_Exit();
-        else if (func === 'Click') BCDW_Click();
-        return true;
-    }
     
+    // --- Load Function (BCDW_Load) ---
+    window.PreferenceSubscreenBCDWLoad = function() { /* No complex load logic needed */ };
+
+    // --- Exit Function (BCDW_Exit) ---
+    window.PreferenceSubscreenBCDWExit = function() { window.CommonSetScreen("Room", "Preference"); };
+
+
     // ====================================================================
-    // 4. Mod SDK Integration (The Safe Asynchronous Fix)
+    // 4. Mod SDK Integration (The Final, Stable Fix)
     // ====================================================================
 
     function registerModWithSDK() {
         // CRITICAL CHECK: Wait for the SDK to be fully defined.
         if (typeof window.bcModSDK === 'undefined' || typeof window.PreferenceRegisterExtensionSetting === 'undefined') {
-            // If not ready, poll again briefly. (The timing fix)
+            // Poll again briefly. (The definitive fix for the Load Order problem)
             window.setTimeout(registerModWithSDK, 50);
             return;
         }
 
         try {
-            // 1. Register the mod with the SDK (Required before registering the button)
+            // 1. Register the mod with the SDK (Required)
             const modApi = window.bcModSDK.registerMod({
                 name: 'BCDiaperWetter',
                 fullName: 'BC Diaper Wetter',
                 version: '1.0.0', 
             });
 
-            // 2. Register the Settings Button
+            // 2. Register the Settings Button, linking to the global functions we defined above.
             window.PreferenceRegisterExtensionSetting({
                 Identifier: 'BCDW',
                 ButtonText: 'Diaper Wetter Settings',
                 Image: 'Icons/Magic.png',
                 
-                load: () => DiaperWetterPrefCall('Load'),
-                run: () => DiaperWetterPrefCall('Run'),
-                exit: () => DiaperWetterPrefCall('Exit'),
-                click: () => DiaperWetterPrefCall('Click'),
+                // We link directly to the exposed global functions (WCE/BCAR pattern)
+                load: window.PreferenceSubscreenBCDWLoad,
+                run: window.PreferenceSubscreenBCDWRun,
+                exit: window.PreferenceSubscreenBCDWExit,
+                click: window.PreferenceSubscreenBCDWClick,
             });
             
             console.log("BC Diaper Wetter Mod successfully registered in Extensions.");
@@ -237,7 +234,7 @@
         }, 2000); 
     }
 
-    // Start the process after a tiny delay to give all loader scripts a head start
+    // Start the deferred registration process
     window.setTimeout(registerModWithSDK, 50); 
 
 })();
