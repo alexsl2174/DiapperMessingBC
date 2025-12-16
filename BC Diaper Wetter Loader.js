@@ -3,7 +3,7 @@
 // @namespace    https://www.bondageprojects.com/
 // @version      0.1.1
 // @description  A simple script that will automatically make a baby use their diaper
-// @author       Kyrian
+// @author       Kyriann
 // @match https://bondageprojects.elementfx.com/*
 // @match https://www.bondageprojects.elementfx.com/*
 // @match https://bondage-europe.com/*
