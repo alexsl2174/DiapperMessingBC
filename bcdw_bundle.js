@@ -29,7 +29,30 @@
     let WetLevelChastity = 0;
 
     // ====================================================================
-    // 2. Core Logic Functions
+    // 2. WCE Utility Functions (For Reliable Async Waiting)
+    // ====================================================================
+
+    // This utility pauses execution using a Promise (mimicking WCE sleep)
+    function sleep(ms) {
+        return new Promise((resolve) => {
+            window.setTimeout(resolve, ms);
+        });
+    }
+
+    // This utility waits for a function to return true (mimicking WCE waitFor)
+    async function waitFor(func, cancelFunc = () => false) {
+        while (!func()) {
+            if (cancelFunc()) {
+                return false;
+            }
+            // Use the sleep utility
+            await sleep(50); // Using 50ms for stability
+        }
+        return true;
+    }
+
+    // ====================================================================
+    // 3. Core Logic Functions
     // ====================================================================
 
     function RoundToDecimal(num, decimalPlaces = 1) {
@@ -122,7 +145,7 @@
 
 
     // ====================================================================
-    // 3. UI/Settings Screen Definition (Exposed Globally)
+    // 4. UI/Settings Screen Definition (Exposed Globally for SDK)
     // ====================================================================
     
     let Y_START = 150; 
@@ -131,7 +154,6 @@
     let PREF_BUTTON_H = 65;
 
     // --- Draw Function (BCDW_Run) ---
-    // This function must be exposed globally under a unique name for the SDK to call it via PreferenceRegisterExtensionSetting.
     window.PreferenceSubscreenBCDWRun = function() {
         window.DrawText("BC Diaper Wetter Settings", 500, 50, "Black", "Gray");
         let Y = Y_START;
@@ -163,7 +185,6 @@
     }
 
     // --- Click Function (BCDW_Click) ---
-    // This function must be exposed globally under a unique name for the SDK to call it.
     window.PreferenceSubscreenBCDWClick = function() {
         if (window.MouseIn(900, 25, 60, 60)) { window.CommonSetScreen("Room", "Preference"); return; }
         let Y = Y_START;
@@ -180,40 +201,39 @@
         if (window.MouseIn(400, Y - 30, 75, 50)) { diaperTimerBase = window.Math.max(5, diaperTimerBase - 5); return; }
     }
     
-    // --- Load Function (BCDW_Load) ---
+    // --- Load Function (BCDW_Load) and Exit Function (BCDW_Exit) ---
     window.PreferenceSubscreenBCDWLoad = function() { /* No complex load logic needed */ };
-
-    // --- Exit Function (BCDW_Exit) ---
-    window.PreferenceSubscreenBCDWExit = function() { window.CommonSetScreen("Room", "Preference"); };
+    window.PreferenceSubscreenBCDWExit = function functionName() { window.CommonSetScreen("Room", "Preference"); };
 
 
     // ====================================================================
-    // 4. Mod SDK Integration (The Final, Stable Fix)
+    // 5. Mod SDK Registration (The Final WCE-Based Solution)
     // ====================================================================
 
-    function registerModWithSDK() {
-        // CRITICAL CHECK: Wait for the SDK to be fully defined.
-        if (typeof window.bcModSDK === 'undefined' || typeof window.PreferenceRegisterExtensionSetting === 'undefined') {
-            // Poll again briefly. (The definitive fix for the Load Order problem)
-            window.setTimeout(registerModWithSDK, 50);
+    async function registerModWithSDK() {
+        // 1. Wait until the critical SDK functions are ready (WCE pattern)
+        const sdkReady = await waitFor(() => typeof window.bcModSDK !== 'undefined' && typeof window.PreferenceRegisterExtensionSetting !== 'undefined');
+
+        if (!sdkReady) {
+            console.error("BCDW: CRITICAL ERROR - Mod SDK did not load.");
             return;
         }
 
         try {
-            // 1. Register the mod with the SDK (Required)
-            const modApi = window.bcModSDK.registerMod({
+            // 2. Register the mod with the SDK
+            window.bcModSDK.registerMod({
                 name: 'BCDiaperWetter',
                 fullName: 'BC Diaper Wetter',
                 version: '1.0.0', 
             });
 
-            // 2. Register the Settings Button, linking to the global functions we defined above.
+            // 3. Register the Settings Button, linking directly to the globally exposed functions.
             window.PreferenceRegisterExtensionSetting({
                 Identifier: 'BCDW',
                 ButtonText: 'Diaper Wetter Settings',
                 Image: 'Icons/Magic.png',
                 
-                // We link directly to the exposed global functions (WCE/BCAR pattern)
+                // Link directly to the exposed global functions (WCE/BCAR pattern)
                 load: window.PreferenceSubscreenBCDWLoad,
                 run: window.PreferenceSubscreenBCDWRun,
                 exit: window.PreferenceSubscreenBCDWExit,
@@ -226,7 +246,7 @@
             console.error("BCDW: Error during mod registration:", error);
         }
         
-        // 3. Start game logic after registration is done
+        // 4. Start game logic after registration is done
         window.setTimeout(() => {
             if (typeof checkTick === 'function' && !diaperRunning && typeof window.Player !== 'undefined') {
                 checkTick(); 
@@ -234,7 +254,7 @@
         }, 2000); 
     }
 
-    // Start the deferred registration process
-    window.setTimeout(registerModWithSDK, 50); 
+    // Start the asynchronous registration process
+    registerModWithSDK(); 
 
 })();
