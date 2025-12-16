@@ -26,25 +26,22 @@
     let MessLevelChastity = 0;
     let WetLevelChastity = 0;
 
-    // --- CORE LOGIC FUNCTIONS ---
+    // --- CORE LOGIC FUNCTIONS (fully defined for stability) ---
 
     function RoundToDecimal(num, decimalPlaces = 1) {
         const p = window.Math.pow(10, decimalPlaces);
         return window.Math.round(num * p) / p;
     }
+    // ... (rest of core logic functions like diaperWetter, refreshDiaper, checkTick, etc. must be included here) ...
+    // NOTE: The full functional code from v0.3.4 is assumed to be present below this line.
 
     function checkForDiaper(slot) {
         const item = window.InventoryGet(window.Player, slot)?.Asset?.Name;
         return !!item && item.toLowerCase().includes("diaper");
     }
     
-    // Placeholder functions for compatibility, ensuring no undefined errors
-    function manageRegression(diaperTimerModifier = 1) { return diaperTimerModifier; }
-    function manageDesperation(diaperTimerModifier = 1) { return diaperTimerModifier; }
-
     function changeDiaperColor(slot) {
-        if (window.Player.MemberNumber === null) return;
-
+        if (!window.Player || window.Player.MemberNumber === null) return;
         const currentItem = window.InventoryGet(window.Player, slot);
         if (!currentItem || !checkForDiaper(slot)) return;
 
@@ -56,7 +53,6 @@
         let newProperties = currentItem.Property || {};
         let newAssetName = currentItem.Asset.Name;
         
-        // Applying Visual Bulk/Thickness:
         if (messLevel > 0 || wetLevel > 0) {
             newProperties.TypeRecord = newProperties.TypeRecord || {};
             newProperties.TypeRecord.typed = (messLevel === 2 || wetLevel === 2) ? 2 : 1; 
@@ -73,21 +69,7 @@
             newProperties.Effect = newProperties.Effect?.filter(e => e !== "Soiled") || [];
         }
 
-        window.InventoryWear(
-            window.Player,
-            newAssetName,
-            slot,
-            [
-                currentItem.Color[0], 
-                newColor,            
-                currentItem.Color[2], 
-                currentItem.Color[3]
-            ],
-            currentItem.Difficulty,
-            window.Player.MemberNumber,
-            true, // Ensure properties are applied
-            newProperties 
-        );
+        window.InventoryWear(window.Player, newAssetName, slot, [currentItem.Color[0], newColor, currentItem.Color[2], currentItem.Color[3]], currentItem.Difficulty, window.Player.MemberNumber, true, newProperties );
     }
 
     function refreshDiaper({ cdiaper = "both", inWetLevelPanties = BCDWCONST.diaperDefaultValues.wetLevelInner, inMessLevelPanties = BCDWCONST.diaperDefaultValues.messLevelInner, inWetLevelChastity = BCDWCONST.diaperDefaultValues.wetLevelOuter, inMessLevelChastity = BCDWCONST.diaperDefaultValues.messLevelOuter } = {})
@@ -102,33 +84,22 @@
     function diaperWetter({ initMessChance = messChance, initWetChance = wetChance, baseTimer = diaperTimerBase } = {}) {
         refreshDiaper({ cdiaper: "both" });
         messChance = initMessChance; wetChance = initWetChance; diaperTimerBase = baseTimer;
-        
-        diaperTimerModifier = 1;
-        diaperTimer = diaperTimerBase / diaperTimerModifier;
-        
+        diaperTimerModifier = 1; diaperTimer = diaperTimerBase / diaperTimerModifier;
         diaperRunning = true; checkTick();
     }
 
     function stopWetting() { diaperRunning = false; window.clearTimeout(diaperLoop); }
 
     function diaperTick() {
-        diaperTimerModifier = 1;
-        diaperTimer = diaperTimerBase / diaperTimerModifier;
-
+        diaperTimerModifier = 1; diaperTimer = diaperTimerBase / diaperTimerModifier;
         let testMess = window.Math.random();
+        
         if (testMess > 1 - messChance) {
-            if (MessLevelPanties === 2 || !checkForDiaper("Panties")) {
-                MessLevelChastity = (MessLevelChastity < 2) ? MessLevelChastity + 1 : MessLevelChastity;
-                WetLevelChastity = (WetLevelChastity < MessLevelChastity) ? MessLevelChastity : WetLevelChastity;
-            } else if (checkForDiaper("Panties")) {
-                MessLevelPanties = MessLevelPanties + 1;
-                WetLevelPanties = (WetLevelPanties < MessLevelPanties) ? MessLevelPanties : WetLevelPanties;
-            }
+            if (MessLevelPanties === 2 || !checkForDiaper("Panties")) { MessLevelChastity = window.Math.min(2, MessLevelChastity + 1); WetLevelChastity = window.Math.max(WetLevelChastity, MessLevelChastity); } 
+            else if (checkForDiaper("Panties")) { MessLevelPanties = window.Math.min(2, MessLevelPanties + 1); WetLevelPanties = window.Math.max(WetLevelPanties, MessLevelPanties); }
         } else if (testMess > 1 - wetChance) {
-            if (WetLevelPanties == 2 && !checkForDiaper("Panties")) {
-                MessLevelChastity = window.Math.min(2, MessLevelChastity);
-                WetLevelChastity = window.Math.min(2, WetLevelChastity + 1);
-            } else { MessLevelPanties = window.Math.min(2, MessLevelPanties); WetLevelPanties = window.Math.min(2, WetLevelPanties + 1); }
+            if (WetLevelPanties == 2 && !checkForDiaper("Panties")) { WetLevelChastity = window.Math.min(2, WetLevelChastity + 1); } 
+            else { WetLevelPanties = window.Math.min(2, WetLevelPanties + 1); }
         } else { return; }
 
         changeDiaperColor("ItemPelvis"); changeDiaperColor("Panties");
@@ -136,14 +107,13 @@
     }
     
     function checkTick() {
-        if((checkForDiaper("ItemPelvis") || checkForDiaper("Panties")) && diaperRunning === true) {
+        if(window.Player && (checkForDiaper("ItemPelvis") || checkForDiaper("Panties")) && diaperRunning === true) {
             diaperLoop = window.setTimeout(checkTick, diaperTimer * 60 * 1000);
             diaperTick();
         } else { diaperRunning = false; }
     }
-
-
-    // --- BCDW-UI.JS CONTENT (Settings Screen Definition) ---
+    
+    // --- BCDW-UI.JS CONTENT ---
     let Y_START = 150; 
     let PREF_BUTTON_Y = 700;
     let PREF_BUTTON_W = 300;
@@ -151,7 +121,6 @@
 
     function DiaperWetterSettingsDraw() {
         window.DrawText("BC Diaper Wetter Settings", 500, 50, "Black", "Gray");
-
         let Y = Y_START;
 
         // Status
@@ -187,7 +156,6 @@
 
     function DiaperWetterSettingsClick() {
         if (window.MouseIn(900, 25, 60, 60)) { window.CommonSetScreen("Room", "Preference"); return; }
-
         let Y = Y_START;
 
         if (window.MouseIn(550, Y - 30, 200, 50)) { diaperRunning ? stopWetting() : diaperWetter({}); return; } Y += 80;
