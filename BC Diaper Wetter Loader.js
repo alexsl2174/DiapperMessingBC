@@ -20,6 +20,7 @@
     let n = document.createElement("script");
     n.setAttribute("language", "JavaScript");
     n.setAttribute("crossorigin", "anonymous");
-    n.setAttribute("src", "https://github.com/alexsl2174/DiapperMessingBC/blob/main/BCInterractiveDiaper" + Date.now());
+
+    n.setAttribute("src", "https://alexsl2174.github.io/DiapperMessingBC/BCInterractiveDiaper.js" + Date.now());
     document.head.appendChild(n);
 })();
