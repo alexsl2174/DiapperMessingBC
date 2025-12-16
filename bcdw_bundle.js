@@ -2,7 +2,7 @@
     'use strict';
 
     // ====================================================================
-    // 1. bcdw-tables.js (Constants & Data)
+    // 1. Core State and Constants
     // ====================================================================
 
     const BCDWVari =
@@ -15,10 +15,6 @@
         diaperDefaultValues: { messChance: .3, wetChance: .5, baseTimer: 30, regressionLevel: 0, desperationLevel: 0, messLevelInner: 0, wetLevelInner: 0, messLevelOuter: 0, wetLevelOuter: 0 }
     };
 
-    // ====================================================================
-    // 2. bcdw-state.js (Core Logic, State, and Ticker)
-    // ====================================================================
-    
     let diaperLoop = null;
     let diaperRunning = false;
     let messChance = BCDWCONST.diaperDefaultValues.messChance;
@@ -31,6 +27,10 @@
     let WetLevelPanties = 0;
     let MessLevelChastity = 0;
     let WetLevelChastity = 0;
+
+    // ====================================================================
+    // 2. Core Logic Functions
+    // ====================================================================
 
     function RoundToDecimal(num, decimalPlaces = 1) {
         const p = window.Math.pow(10, decimalPlaces);
@@ -55,7 +55,7 @@
         let newProperties = currentItem.Property || {};
         let newAssetName = currentItem.Asset.Name;
         
-        // Applying Visual Bulk/Thickness and Soiling based on level
+        // Applying Visual Bulk/Thickness and Soiling based on level (The "Prettier" Fix)
         if (messLevel > 0 || wetLevel > 0) {
             newProperties.TypeRecord = newProperties.TypeRecord || {};
             newProperties.TypeRecord.typed = (messLevel === 2 || wetLevel === 2) ? 2 : 1; 
@@ -122,7 +122,7 @@
 
 
     // ====================================================================
-    // 3. bcdw-ui.js (UI/Settings Screen Definition)
+    // 3. UI/Settings Screen Definition
     // ====================================================================
     
     let Y_START = 150; 
@@ -130,33 +130,29 @@
     let PREF_BUTTON_W = 300;
     let PREF_BUTTON_H = 65;
 
-    function DiaperWetterSettingsDraw() {
+    // --- UI Draw Function (BCDW_Run) ---
+    function BCDW_Run() {
         window.DrawText("BC Diaper Wetter Settings", 500, 50, "Black", "Gray");
         let Y = Y_START;
 
-        // Status
         window.DrawText(`Status: ${diaperRunning ? 'RUNNING' : 'STOPPED'}`, 150, Y, "black", "white");
         window.DrawButton(550, Y - 30, 200, 50, diaperRunning ? "STOP" : "START", diaperRunning ? "Red" : "Green", "BCDW_ToggleRun");
         Y += 80;
 
-        // Change Diaper
         window.DrawText("Manually Reset Diaper:", 150, Y, "black", "white");
         window.DrawButton(550, Y - 30, 200, 50, "Change Diaper", "LightBlue", "BCDW_Change");
         Y += 80;
         
-        // --- Wet Chance ---
         window.DrawText(`Wet Chance: ${RoundToDecimal(wetChance).toFixed(1)}`, 150, Y, "black", "white");
         window.DrawButton(450, Y - 30, 50, 50, "-", "Silver", "BCDW_WetDown");
         window.DrawButton(600, Y - 30, 50, 50, "+", "Silver", "BCDW_WetUp");
         Y += 80;
 
-        // --- Mess Chance ---
         window.DrawText(`Mess Chance: ${RoundToDecimal(messChance).toFixed(1)} (0.0 = Wet Only)`, 150, Y, "black", "white");
         window.DrawButton(450, Y - 30, 50, 50, "-", "Silver", "BCDW_MessDown");
         window.DrawButton(600, Y - 30, 50, 50, "+", "Silver", "BCDW_MessUp");
         Y += 80;
 
-        // --- Base Timer ---
         window.DrawText(`Base Timer: ${diaperTimerBase} min`, 150, Y, "black", "white");
         window.DrawButton(400, Y - 30, 75, 50, "-5 min", "Silver", "BCDW_TimerDown");
         window.DrawButton(650, Y - 30, 75, 50, "+5 min", "Silver", "BCDW_TimerUp");
@@ -165,7 +161,8 @@
         window.DrawButton(900, 25, 60, 60, "", "White", "BCDW_Exit");
     }
 
-    function DiaperWetterSettingsClick() {
+    // --- UI Click Function (BCDW_Click) ---
+    function BCDW_Click() {
         if (window.MouseIn(900, 25, 60, 60)) { window.CommonSetScreen("Room", "Preference"); return; }
         let Y = Y_START;
 
@@ -181,30 +178,40 @@
         if (window.MouseIn(400, Y - 30, 75, 50)) { diaperTimerBase = window.Math.max(5, diaperTimerBase - 5); return; }
     }
 
-    // Expose the custom screen globally (required for Mod SDK)
-    window.DiaperWetterSettings = {
-        Load: () => { },
-        Run: DiaperWetterSettingsDraw,
-        Click: DiaperWetterSettingsClick
-    };
+    // Helper functions required by the SDK registration interface
+    const BCDW_Load = () => { /* No complex load logic needed */ };
+    const BCDW_Exit = () => { window.CommonSetScreen("Room", "Preference"); };
 
-
-    // ====================================================================
-    // 4. bcdw-integration.js (Official Mod SDK Registration with Wait Loop)
-    // ====================================================================
-
+    // Function to bridge SDK calls to your local functions (as per BCAR example)
     function DiaperWetterPrefCall(func) {
-        const settingsScreen = window.DiaperWetterSettings; 
-
-        if (settingsScreen && typeof settingsScreen[func] === 'function') {
-            settingsScreen[func](); 
-            return true;
-        }
-        return false;
+        if (func === 'Load') BCDW_Load();
+        else if (func === 'Run') BCDW_Run();
+        else if (func === 'Exit') BCDW_Exit();
+        else if (func === 'Click') BCDW_Click();
+        return true;
     }
+    
+    // ====================================================================
+    // 4. Mod SDK Integration (The Safe Asynchronous Fix)
+    // ====================================================================
 
-    function registerBCDWExtension() {
-        if (typeof window.PreferenceRegisterExtensionSetting === 'function') {
+    function registerModWithSDK() {
+        // CRITICAL CHECK: Wait for the SDK to be fully defined.
+        if (typeof window.bcModSDK === 'undefined' || typeof window.PreferenceRegisterExtensionSetting === 'undefined') {
+            // If not ready, poll again briefly. (The timing fix)
+            window.setTimeout(registerModWithSDK, 50);
+            return;
+        }
+
+        try {
+            // 1. Register the mod with the SDK (Required before registering the button)
+            const modApi = window.bcModSDK.registerMod({
+                name: 'BCDiaperWetter',
+                fullName: 'BC Diaper Wetter',
+                version: '1.0.0', 
+            });
+
+            // 2. Register the Settings Button
             window.PreferenceRegisterExtensionSetting({
                 Identifier: 'BCDW',
                 ButtonText: 'Diaper Wetter Settings',
@@ -215,22 +222,22 @@
                 exit: () => DiaperWetterPrefCall('Exit'),
                 click: () => DiaperWetterPrefCall('Click'),
             });
-            console.log("BCDW: Successfully registered with Mod SDK.");
             
-        } else {
-            // Wait and check again for the Mod SDK function (the fix for the Load Order problem)
-            window.setTimeout(registerBCDWExtension, 500); 
+            console.log("BC Diaper Wetter Mod successfully registered in Extensions.");
+
+        } catch (error) {
+            console.error("BCDW: Error during mod registration:", error);
         }
+        
+        // 3. Start game logic after registration is done
+        window.setTimeout(() => {
+            if (typeof checkTick === 'function' && !diaperRunning && typeof window.Player !== 'undefined') {
+                checkTick(); 
+            }
+        }, 2000); 
     }
 
-    // Start the deferred registration process
-    registerBCDWExtension(); 
-    
-    // Start initial check loop
-    window.setTimeout(() => {
-        if (typeof checkTick === 'function' && !diaperRunning && typeof window.Player !== 'undefined') {
-            checkTick();
-        }
-    }, 2000); 
+    // Start the process after a tiny delay to give all loader scripts a head start
+    window.setTimeout(registerModWithSDK, 50); 
 
 })();
